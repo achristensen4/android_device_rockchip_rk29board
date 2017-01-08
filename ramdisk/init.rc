@@ -91,7 +91,7 @@ loglevel 3
     mount tmpfs tmpfs /mnt/fuse mode=0775,gid=1000
 
     write /proc/sys/kernel/panic_on_oops 1
-    write /proc/sys/kernel/hung_task_timeout_secs 0
+    write /proc/sys/kernel/hung_task_timeout_secs 30
     write /proc/cpu/alignment 4
     write /proc/sys/kernel/sched_latency_ns 10000000
     write /proc/sys/kernel/sched_wakeup_granularity_ns 2000000
@@ -99,7 +99,7 @@ loglevel 3
     write /proc/sys/kernel/sched_child_runs_first 0
     write /proc/sys/kernel/randomize_va_space 2
     write /proc/sys/kernel/kptr_restrict 2
-    write /proc/sys/kernel/dmesg_restrict 1
+    write /proc/sys/kernel/dmesg_restrict 0
     write /proc/sys/vm/mmap_min_addr 32768
     write /proc/sys/kernel/sched_rt_runtime_us 950000
     write /proc/sys/kernel/sched_rt_period_us 1000000
@@ -137,13 +137,13 @@ on fs
 # mount mtd partitions
     # Mount /system rw first to give the filesystem a chance to save a checkpoint
     insmod /rk29xxnand_ko.ko.3.0.8+
-    mount ext4 mtd@system /system noatime nodiratime
-    mount ext4 mtd@userdata /data nosuid nodev noatime nodiratime
-    mount ext4 mtd@cache /cache nosuid nodev noatime nodiratime
+    mount ext4 mtd@system /system noatime nodiratime nosuid nodev barrier=1
+    mount ext4 mtd@userdata /data nosuid nodev noatime nodiratime barrier=1
+    mount ext4 mtd@cache /cache nosuid nodev noatime nodiratime barrier=1
 
 on post-fs
     # once everything is setup, no need to modify /
-    mount rootfs rootfs / ro remount
+    mount rootfs rootfs / rw remount
     # mount shared so changes propagate into child namespaces
     mount rootfs rootfs / shared rec
     mount tmpfs tmpfs /mnt/secure private rec
@@ -250,7 +250,7 @@ on post-fs-data
     # must uncomment this line, otherwise encrypted filesystems
     # won't work.
     # Set indication (checked by vold) that we have finished this action
-    #setprop vold.post_fs_data_done 1
+    setprop vold.post_fs_data_done 1
 
 # Include extra init file
     import /init.cm.rc
@@ -428,7 +428,6 @@ on property:selinux.reload_policy=1
 service console /system/bin/sh
     class core
     console
-    disabled
     user shell
     group log
 
@@ -439,7 +438,6 @@ on property:ro.debuggable=1
 service adbd /sbin/adbd
     class core
     socket adbd stream 660 system system
-    disabled
     seclabel u:r:adbd:s0
 
 # adbd on at boot in emulator
@@ -459,7 +457,6 @@ service servicemanager /system/bin/servicemanager
 service vold /system/bin/vold
     class core
     socket vold stream 0660 root mount
-    ioprio be 2
 
 service netd /system/bin/netd
     class main
@@ -500,13 +497,11 @@ service media /system/bin/mediaserver
     class main
     user media
     group audio camera inet net_bt net_bt_admin net_bw_acct drmrpc qcom_diag
-    ioprio rt 4
 
 service bootanim /system/bin/bootanimation
     class main
     user graphics
     group graphics
-    disabled
     oneshot
 
 service installd /system/bin/installd
@@ -518,7 +513,6 @@ service racoon /system/bin/racoon
     socket racoon stream 600 system system
     # IKE uses UDP port 500. Racoon will setuid to vpn after binding the port.
     group vpn net_admin inet
-    disabled
     oneshot
 
 service mtpd /system/bin/mtpd
@@ -526,7 +520,6 @@ service mtpd /system/bin/mtpd
     socket mtpd stream 600 system system
     user vpn
     group vpn net_admin inet net_raw
-    disabled
     oneshot
 
 service keystore /system/bin/keystore /data/misc/keystore
@@ -538,17 +531,14 @@ service keystore /system/bin/keystore /data/misc/keystore
 service dumpstate /system/bin/dumpstate -s
     class main
     socket dumpstate stream 0660 shell log
-    disabled
     oneshot
 
 service sshd /system/bin/start-ssh
     class main
-    disabled
 
 service mdnsd /system/bin/mdnsd
     class main
     user mdnsr
     group inet net_raw
     socket mdnsd stream 0660 mdnsr inet
-    disabled
     oneshot
